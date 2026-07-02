@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Suporte — Omni</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f1117;--bg2:#181c27;--bg3:#1e2333;--border:rgba(255,255,255,0.07);--text:#f0f2f8;--text2:#8b92a8;--text3:#555d75;--accent:#4f8ef7;--green:#2dd4a0;--amber:#f59e0b;--red:#f26c6c;--purple:#a78bfa;--radius:12px;--rsm:8px}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
+.header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px}
+.header-left h1{font-size:20px;font-weight:700;letter-spacing:-.4px}
+.header-left p{font-size:12px;color:var(--text2);margin-top:3px}
+/* Date picker */
+.date-picker{position:relative}
+.dp-btn{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:500;padding:8px 14px;border-radius:var(--rsm);cursor:pointer;min-width:200px;justify-content:space-between;transition:border-color .15s}
+.dp-btn:hover,.dp-btn.open{border-color:var(--accent)}
+.dp-btn svg{transition:transform .2s}
+.dp-btn.open svg{transform:rotate(180deg)}
+.dp-dropdown{position:absolute;top:calc(100% + 6px);right:0;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);min-width:240px;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:100;overflow:hidden;display:none}
+.dp-dropdown.open{display:block}
+.dp-month-header{padding:10px 14px 6px;border-bottom:1px solid var(--border)}
+.dp-month-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em}
+.dp-week{display:flex;align-items:center;justify-content:space-between;width:100%;padding:9px 14px;background:none;border:none;color:var(--text2);font-size:12px;cursor:pointer;text-align:left;transition:all .15s;border-left:3px solid transparent}
+.dp-week:hover{color:var(--text);background:var(--bg3)}
+.dp-week.active{color:var(--accent);border-left-color:var(--accent);background:rgba(79,142,247,.06)}
+.dp-week.no-data{color:var(--text3);cursor:default}
+.dp-week.in-progress{color:var(--amber)}
+.dp-week-label{font-weight:600;font-size:12px}
+.dp-week-dates{font-size:11px;opacity:.7}
+.dp-week-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px}
+.wbg-ok{background:rgba(45,212,160,.1);color:var(--green)}
+.wbg-live{background:rgba(245,158,11,.1);color:var(--amber)}
+.wbg-soon{background:rgba(139,146,168,.08);color:var(--text3)}
+/* Status badge */
+.blive{display:inline-flex;align-items:center;gap:6px;background:rgba(45,212,160,.1);border:1px solid rgba(45,212,160,.2);color:var(--green);font-size:11px;font-weight:500;padding:4px 10px;border-radius:999px}
+.blive-amber{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.2);color:var(--amber)}
+.dot2{width:6px;height:6px;border-radius:50%;background:currentColor}
+/* Tabs */
+.tabs{display:flex;gap:2px;margin-bottom:20px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rsm);padding:4px;flex-wrap:wrap;width:fit-content}
+.tab{font-size:13px;font-weight:500;padding:7px 16px;background:none;border:none;color:var(--text2);cursor:pointer;border-radius:6px;transition:all .15s;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.active{background:var(--bg3);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.sec{display:none}.sec.active{display:block}
+/* Week banner */
+.week-banner{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rsm);padding:10px 14px;margin-bottom:18px;flex-wrap:wrap;font-size:12px;color:var(--text2)}
+.wbl{font-weight:700;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.wbv{font-size:13px;font-weight:600;color:var(--text);margin-top:2px}
+.wbsep{width:1px;height:28px;background:var(--border)}
+/* Section title */
+.sec-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin:20px 0 12px}
+/* Client table */
+.client-table{width:100%;border-collapse:collapse;font-size:12px}
+.client-table th{text-align:left;padding:8px 12px;color:var(--text3);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+.client-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle}
+.client-table tr:last-child td{border-bottom:none}
+.client-table tr:hover td{background:rgba(255,255,255,.02)}
+.client-name{font-weight:600;color:var(--text)}
+.vol-badge{display:inline-flex;align-items:center;justify-content:center;background:rgba(79,142,247,.12);color:var(--accent);font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;min-width:28px}
+.assunto-list{display:flex;flex-wrap:wrap;gap:4px}
+.assunto-tag{font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+/* Bug bar */
+.bug-cell{min-width:140px}
+.bug-bar-wrap{display:flex;align-items:center;gap:8px}
+.bug-bar-track{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;min-width:60px}
+.bug-bar-fill{height:100%;border-radius:3px;background:var(--green);transition:width .3s}
+.bug-bar-fill.warn{background:var(--amber)}
+.bug-bar-fill.crit{background:var(--red)}
+.bug-nums{font-size:10px;color:var(--text3);white-space:nowrap}
+.bug-nums span{color:var(--text2)}
+/* Bot badge */
+.bot-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(167,139,250,.1);color:var(--purple);font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px}
+.bot-badge.zero{background:var(--bg3);color:var(--text3)}
+/* CSM filter */
+.csm-filter{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.csm-btn{font-size:12px;font-weight:600;padding:6px 14px;background:var(--bg2);border:1px solid var(--border);color:var(--text2);border-radius:var(--rsm);cursor:pointer;transition:all .15s}
+.csm-btn:hover{border-color:var(--accent);color:var(--text)}
+.csm-btn.active{background:rgba(79,142,247,.1);border-color:var(--accent);color:var(--accent)}
+/* Whizz */
+.wh-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.wh-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+.wh-card-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px}
+.wh-client-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.wh-client-row:last-child{border-bottom:none}
+.wh-rank{font-size:11px;color:var(--text3);width:18px;text-align:center}
+.wh-bar{flex:1;margin:0 10px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.wh-bar-fill{height:100%;background:var(--purple);border-radius:2px}
+/* Opportunity cards */
+.opp-list{display:flex;flex-direction:column;gap:10px}
+.opp-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rsm);padding:14px 16px;display:flex;align-items:flex-start;gap:12px}
+.opp-card.alta{border-left:3px solid var(--red)}
+.opp-card.media{border-left:3px solid var(--amber)}
+.opp-card.baixa{border-left:3px solid var(--text3)}
+.opp-pri{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap;margin-top:1px}
+.opp-pri.alta{background:rgba(242,108,108,.1);color:var(--red)}
+.opp-pri.media{background:rgba(245,158,11,.1);color:var(--amber)}
+.opp-body{flex:1}
+.opp-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.opp-desc{font-size:12px;color:var(--text2);line-height:1.5}
+.opp-issues{font-size:11px;color:var(--text3);margin-top:4px}
+/* Issues N2 */
+.squad-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.sfilter-btn{font-size:11px;font-weight:500;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);color:var(--text2);border-radius:5px;cursor:pointer;transition:all .15s}
+.sfilter-btn:hover{border-color:var(--accent);color:var(--text)}
+.sfilter-btn.sfa{background:rgba(79,142,247,.1);border-color:var(--accent);color:var(--accent)}
+.issue-table{width:100%;border-collapse:collapse;font-size:12px}
+.issue-table th{text-align:left;padding:7px 10px;color:var(--text3);font-size:11px;font-weight:600;border-bottom:1px solid var(--border)}
+.issue-table td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle}
+.issue-table tr:last-child td{border-bottom:none}
+.iss-link{color:var(--accent);text-decoration:none;font-weight:600;font-size:11px}
+.iss-link:hover{text-decoration:underline}
+.st-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;white-space:nowrap}
+.p-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px}
+.p-high{background:rgba(242,108,108,.12);color:var(--red)}
+.p-med{background:rgba(245,158,11,.12);color:var(--amber)}
+.p-low{background:rgba(139,146,168,.1);color:var(--text3)}
+.co-tag{font-size:11px;font-weight:500;color:var(--text2)}
+/* Summary strip */
+.sum-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.sum-chip{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rsm);padding:8px 14px;font-size:12px;color:var(--text2)}
+.sum-chip strong{color:var(--text);font-size:14px;display:block;margin-bottom:1px}
+/* No data */
+.nodata{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;gap:10px;color:var(--text3);text-align:center}
+.nodata .ic{font-size:40px;opacity:.3}
+/* Footer */
+#footer{font-size:11px;color:var(--text3);margin-top:28px;padding-top:14px;border-top:1px solid var(--border)}
+@media(max-width:700px){.wh-grid{grid-template-columns:1fr}.client-table td:nth-child(3),.client-table th:nth-child(3){display:none}}
+
+[data-theme="light"]{
+  --bg:#f4f6fb;--bg2:#ffffff;--bg3:#e9ecf5;
+  --border:rgba(0,0,0,0.08);
+  --text:#1a1d2e;--text2:#5a6280;--text3:#9098b4;
+  --accent:#3b7ef5;--green:#0aad7c;--amber:#d97706;--red:#dc2626;--purple:#7c3aed
+}
+[data-theme="light"] body{background:var(--bg)}
+[data-theme="light"] .client-table td{border-bottom:1px solid rgba(0,0,0,.04)}
+[data-theme="light"] .client-table tr:hover td{background:rgba(0,0,0,.02)}
+[data-theme="light"] .tab.active{box-shadow:0 1px 3px rgba(0,0,0,.12)}
+[data-theme="light"] .dp-dropdown{box-shadow:0 8px 32px rgba(0,0,0,.12)}
+/* theme toggle btn */
+.theme-btn{
+  display:flex;align-items:center;gap:6px;
+  background:var(--bg2);border:1px solid var(--border);
+  color:var(--text2);font-size:12px;font-weight:500;
+  padding:7px 12px;border-radius:var(--rsm);cursor:pointer;
+  transition:all .15s;white-space:nowrap
+}
+.theme-btn:hover{border-color:var(--accent);color:var(--text)}
+
+.bug-chip{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid transparent;cursor:pointer;transition:all .15s;background:var(--bg3);color:var(--text2)}
+.bug-chip:hover{border-color:var(--accent);color:var(--text)}
+.bug-chip.active{border-color:currentColor}
+.bug-chip.chip-all.active{background:rgba(242,108,108,.12);color:#f26c6c;border-color:#f26c6c}
+.bug-chip.chip-open.active{background:rgba(245,158,11,.12);color:#f59e0b;border-color:#f59e0b}
+.bug-chip.chip-done.active{background:rgba(45,212,160,.1);color:var(--green);border-color:var(--green)}
+.omni-logo{height:26px;display:block;filter:brightness(0) invert(1);transition:filter .2s}
+[data-theme="light"] .omni-logo{filter:none}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <img src="https://omni.chat/wp-content/uploads/2025/12/Conteudo.svg" alt="OmniChat" class="omni-logo">
+      <h1>Dashboard de Suporte</h1>
+    </div>
+    <p id="subtitle">Omni · Junho 2026 — Selecione a semana</p>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()"><span id="themeIcon">☀️</span><span id="themeLabel">Claro</span></button>
+    <span id="blive" class="blive" style="display:none"><span class="dot2"></span><span id="bliveText"></span></span>
+    <div class="date-picker" id="datePicker">
+      <button class="dp-btn" id="dpBtn" onclick="togglePicker()">
+        <span id="dpLabel">Selecione a semana...</span>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 5l5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="dp-dropdown" id="dpDropdown"></div>
+    </div>
+  </div>
+</div>
+<div id="main"><div class="nodata"><div class="ic">📊</div><p>Selecione uma semana para visualizar os dados</p></div></div>
+<div id="footer" style="display:none"></div>
+
+<script>
+
+/* ── THEME TOGGLE ── */
+var _theme=(function(){
+  try{return localStorage.getItem('omni-dash-theme')||'dark';}catch(e){return 'dark';}
+})();
+
+function applyTheme(t){
+  _theme=t;
+  document.documentElement.setAttribute('data-theme', t==='light'?'light':'');
+  var btn=document.getElementById('themeBtn');
+  var icon=document.getElementById('themeIcon');
+  var label=document.getElementById('themeLabel');
+  if(t==='light'){
+    if(icon)icon.textContent='🌙';
+    if(label)label.textContent='Escuro';
+    if(btn)btn.title='Mudar para modo escuro';
+  } else {
+    if(icon)icon.textContent='☀️';
+    if(label)label.textContent='Claro';
+    if(btn)btn.title='Mudar para modo claro';
+  }
+  try{localStorage.setItem('omni-dash-theme',t);}catch(e){}
+  // Re-render chart with updated colors if visible
+  if(_currentSpMensal && document.getElementById('sp-chart-canvas')){
+    var ssp=document.getElementById('ssp');
+    if(ssp&&ssp.classList.contains('active')) renderSpChart(_activeCsm,_currentSpMensal);
+  }
+}
+
+function toggleTheme(){applyTheme(_theme==='light'?'dark':'light');}
+
+
+var SEMANAS=["s1-jun2026","s2-jun2026","s3-jun2026","s4-jun2026","s5-jun2026"];
+var LABELS={"s1-jun2026":"S1 · 01–07/Jun","s2-jun2026":"S2 · 08–14/Jun","s3-jun2026":"S3 · 15–21/Jun","s4-jun2026":"S4 · 22–28/Jun","s5-jun2026":"S5 · 29–30/Jun"};
+var DATAS={"s1-jun2026":"01/06 a 07/06/2026","s2-jun2026":"08/06 a 14/06/2026","s3-jun2026":"15/06 a 21/06/2026","s4-jun2026":"22/06 a 28/06/2026","s5-jun2026":"29/06 a 30/06/2026"};
+var STATUS={"s1-jun2026":"completa","s2-jun2026":"completa","s3-jun2026":"completa","s4-jun2026":"em-andamento","s5-jun2026":"em-andamento"};
+
+// CSM_CARTEIRAS: sênior → sub-CSMs que atendem (usados para atribuir org à carteira)
+var CSM_CARTEIRAS={
+  "Nayara":["Willy","Lorenzo"],
+  "Heloísa":["Amanda","Ruth","July"],
+  "Thaiane":["Hiago","Natalia","Josi"],
+  "Raphael":["Julia","Carolina"]
+};
+// SP = tag "Resolvido Premium" no Intercom — TechTouch = tag "Resolvido N1" sem essa tag
+
+var DADOS={
+  "s1-jun2026":{disponivel:false},
+  "s2-jun2026":{disponivel:false},
+  "s3-jun2026":{disponivel:false},
+
+  "s4-jun2026":{
+    disponivel:true,
+    gerado:"26/06/2026",
+
+    techtouch:{
+      bugs:[
+        {k:"S3-16197",t:"Whizz utilizando APIs parou de funcionar",s:"Triagem N3"},
+        {k:"S3-16163",t:"Habilidades conectadas por api, pararam de funcionar com adk",s:"Triagem N3"},
+        {k:"S3-16174",t:"Whizz mandando os produtos em texto, sem mandar imagens | GenioDesk",s:"Triagem N3"},
+        {k:"S3-16148",t:"Whizz perdendo contexto no reengajamento",s:"Triagem N3"},
+        {k:"S3-16176",t:"Solicitação de desbloqueio de número no backoffice",s:"Triagem Suporte N3"},
+        {k:"S3-16184",t:"Whizz envia link ao invés da imagem do produto",s:"Selecionado p/ Desenvolvimento"},
+        {k:"S3-16181",t:"Whizz traz a descrição dos produtos ao invés das fotos solicitadas | Racing Rabbit",s:"Selecionado p/ Desenvolvimento"},
+        {k:"S3-16183",t:"Validar geração de UTMs no fluxo de carrinho abandonado (envio apenas de utm_source)",s:"Em Desenvolvimento"},
+        {k:"S3-16156",t:"O Whizz não está utilizando da base de conhecimento corretamente para responder ao consumidor",s:"Em Desenvolvimento"},
+        {k:"S3-16196",t:"Ação em massa de transferência de atendimentos finalizados com erro",s:"Concluído"},
+        {k:"S3-16189",t:"Alterar nome",s:"Concluído"},
+        {k:"S3-16185",t:"Checkout enviado pelo whizz está inválido",s:"Concluído"},
+        {k:"S3-16182",t:"Integração Legado: não foi possível desativar o embedded",s:"Concluído"},
+        {k:"S3-16175",t:"Distribuição automática de conversas retidas quando atendente volta a ficar online",s:"Concluído"},
+        {k:"S3-16171",t:"Certificado na API não sincronizou e nome não atualiza",s:"Concluído"},
+        {k:"S3-16169",t:"Permissões de relatórios habilitadas no nível Supervisor não refletem no login da colaboradora",s:"Concluído"},
+        {k:"S3-16165",t:"Erro acionamento de Bot",s:"Concluído"},
+        {k:"S3-16161",t:"Alterar nome (2)",s:"Concluído"},
+        {k:"S3-16155",t:"Mensagens não chegando ao cliente final",s:"Concluído"}
+      ],
+      clientes:[
+        {nome:"Frigelar",volume:9,assuntos:["Abandono de chat","Config. de canal","Erro em conversas"],bugs:{abertas:2,concluidas:5},bot_ajuste:2,whizz_ajuste:0},
+        {nome:"Webcontinental",volume:7,assuntos:["Conversas e Atendimentos","BOT Studio Pro","Lentidão"],bugs:{abertas:1,concluidas:3},bot_ajuste:1,whizz_ajuste:1},
+        {nome:"Dassette Pharma",volume:6,assuntos:["Configuração de canal","Usuários","Erro em conversas"],bugs:{abertas:3,concluidas:2},bot_ajuste:0,whizz_ajuste:0},
+        {nome:"ALOUD IDIOMAS",volume:5,assuntos:["Abandono de chat","BOT Studio Pro"],bugs:{abertas:0,concluidas:4},bot_ajuste:3,whizz_ajuste:0},
+        {nome:"Selovac",volume:4,assuntos:["E-mail phishing","Financeiro"],bugs:{abertas:1,concluidas:1},bot_ajuste:0,whizz_ajuste:0},
+        {nome:"Shark Atacadista",volume:4,assuntos:["Relatório","Config. de canal"],bugs:{abertas:2,concluidas:3},bot_ajuste:1,whizz_ajuste:0},
+        {nome:"BRW Sports Group",volume:3,assuntos:["CSAT","Abandono de chat"],bugs:{abertas:0,concluidas:2},bot_ajuste:0,whizz_ajuste:0},
+        {nome:"Brooksfield",volume:3,assuntos:["Erro em conversas","Usuários"],bugs:{abertas:1,concluidas:2},bot_ajuste:1,whizz_ajuste:0},
+        {nome:"GP Pneus",volume:2,assuntos:["Integração Meta","Config."],bugs:{abertas:1,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+        {nome:"Farma Débora",volume:2,assuntos:["Relatório","Atendimento"],bugs:{abertas:0,concluidas:1},bot_ajuste:0,whizz_ajuste:0}
+      ]
+    },
+
+    onboarding:{
+      bugs:[],
+      clientes:[
+        {nome:"Dental Cremer",volume:1,assuntos:["Whizz Agent"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:1}
+      ]
+    },
+
+    sp:{
+      // Dados reais S4 — Intercom tag "Resolvido Premium" (22-28/jun/2026)
+      // Atribuição: admin_assignee → CSM. Bugs: pendente cruzamento Jira.
+      carteiras:{
+        "Nayara":{bugs:[
+          {k:"S3-16194",t:"Campo count na API GET /v1/users retorna valor incorreto em relação ao total de itens da resposta",s:"Concluído"},
+          {k:"S3-16193",t:"Acesso sombra gerado com data de expiração igual a data de liberação",s:"Concluído"},
+          {k:"S3-16190",t:"Whizz não encontra produto corretamente",s:"Concluído"},
+          {k:"S3-16187",t:"Deeplink não abre janela com template corretamente",s:"Triagem N3"},
+          {k:"S3-16186",t:"Erro ao criar usuário",s:"Concluído"},
+          {k:"S3-16173",t:"Erro para deletar template",s:"Concluído"},
+          {k:"S3-16167",t:"Habilidade do Whizz é acionada em momento errado",s:"Aguardando Deploy Prod"},
+          {k:"S3-16160",t:"Transferência do Whizz para bot com erro",s:"Selecionado p/ Desenvolvimento"},
+          {k:"S3-16151",t:"Template aprovado na Meta não reflete status na Omni",s:"Aguardando Validação"}
+        ],clientes:[
+          {nome:"[Henry Schein] Dental Cremer",volume:9,assuntos:["Solicitação - Dados Internos","Exclusão de dados sensíveis","Sugestão"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"UNIVALI",volume:3,assuntos:["Campanhas","Dúvida - Dashboard","Relatório"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"ALOUD IDIOMAS LTDA",volume:2,assuntos:["Dúvida - Atualizações da Meta","BSUID","Solicitação - Gerenciador"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"CNA",volume:2,assuntos:["Solicitação - Desenho de bot","Fluxo Bot","Solicitação - Alteração Whatsapp"],bugs:{abertas:0,concluidas:0},bot_ajuste:1,whizz_ajuste:0},
+          {nome:"[Grupo Soma] Animale",volume:1,assuntos:["Cobrança META","Uso e consumo","Dúvida - Uso e Consumo"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Faculdade UniBF - Comercial",volume:1,assuntos:["Solicitação - Bloqueio de número","Bloqueio de Número"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Fluency Academy",volume:1,assuntos:["Dúvida - Times","Usuário"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Grupo AMC - Open",volume:1,assuntos:["Dúvida - Whizz Agent","Ajuste de habilidade"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:1},
+          {nome:"[Vitru] Salvator | Uniasselvi",volume:1,assuntos:["Erro - Conversas/Atendimentos","Bot CSAT","Issue"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Hs Consórcios",volume:1,assuntos:["Dúvida - Conversas/Atendimento","Voice Calling"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0}
+        ]},
+        "Heloísa":{bugs:[
+          {k:"S3-16195",t:"Whizz não enviando link do produto",s:"Triagem N3"},
+          {k:"S3-16192",t:"Falha na atualização do Dashboard de Atendimentos",s:"Concluído"},
+          {k:"S3-16191",t:"Redução nos disparos da campanha de Recuperação de Carrinho",s:"Triagem N3"},
+          {k:"S3-16180",t:"Whizz apresentando restrição de estoque/carrinho e orientação incorreta de compra fracionada",s:"Triagem N3"},
+          {k:"S3-16179",t:"Whizz com textos excessivamente longos, termos técnicos inadequados",s:"Selecionado p/ Desenvolvimento"},
+          {k:"S3-16178",t:"Falha na reversão automática de carteira após férias",s:"Em Desenvolvimento"},
+          {k:"S3-16170",t:"Supervisor com erro ao acessar chats finalizados",s:"Concluído"},
+          {k:"S3-16168",t:"Tipo de mensagem GROUPED retorna Erro 400 na API de Mensagens",s:"Concluído"},
+          {k:"S3-16166",t:"Whizz informa transferência para consultor humano, retém o chat e dispara reengajamento indevido",s:"Concluído"},
+          {k:"S3-16164",t:"Whizz com negativa indevida de produto existente",s:"Concluído"},
+          {k:"S3-16162",t:"Fila de finalizados não exibida no app",s:"Concluído"},
+          {k:"S3-16159",t:"Whizz não executando perguntas de qualificação",s:"Concluído"},
+          {k:"S3-16157",t:"Whizz avisa que irá transferir atendimento, mas não executa ação",s:"Em Desenvolvimento"},
+          {k:"S3-16152",t:"Falha na vinculação de contato à carteira",s:"Concluído"},
+          {k:"S3-16150",t:"[Whizz] Oferece categoria inexistente no catálogo (Jaquetas Esportivas)",s:"Concluído"}
+        ],clientes:[
+          {nome:"Frigelar",volume:3,assuntos:["Conversa duplicada","Solicitação - Bloqueio de número","Bloqueio de Número"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Balaroti",volume:2,assuntos:["Abandono de chat","Dúvida - Integração/API","API"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Kiko Milano Brasil",volume:2,assuntos:["Solicitação - Ajuste de BOT","Ajuste de fluxo","BOT Studio Pro"],bugs:{abertas:0,concluidas:0},bot_ajuste:1,whizz_ajuste:0},
+          {nome:"LIVE! ROUPAS ESPORTIVAS LTDA",volume:2,assuntos:["Solicitação - Ajuste de BOT","Bypass","BOT Studio Pro"],bugs:{abertas:0,concluidas:0},bot_ajuste:1,whizz_ajuste:0},
+          {nome:"Cassol Centerlar",volume:2,assuntos:["Solicitação - Bloqueio de número","Bloqueio de Número","Whatsapp"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Lider Interiores",volume:1,assuntos:["FIN","Abandono de chat"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Grupo Nichele",volume:1,assuntos:["Solicitação - Bloqueio de número","Bloqueio de Número","Whatsapp"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Telhanorte",volume:1,assuntos:["Dúvida - Relatório","Relatório de Atendimentos","Relatório de Mensagens"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"sportbr",volume:1,assuntos:["Ajuste de mensagem","Solicitação - Whizz Agent","Whizz Agent"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:1},
+          {nome:"Idéli.Oui",volume:1,assuntos:["Solicitação - LGPD","Exclusão de dados sensíveis","Bloqueio de Número"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0}
+        ]},
+        "Thaiane":{bugs:[
+          {k:"S3-16198",t:"Whizz informando que o cliente pode visitar o site para saber se tem produto",s:"Triagem N3"},
+          {k:"S3-16158",t:"Finalização configurada em Whizz não funcionando",s:"Concluído"}
+        ],clientes:[
+          {nome:"Dassette Pharma",volume:4,assuntos:["BSUID","Dúvida - Integração/API","Embedded Sign-up"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:1},
+          {nome:"Anselmi  | OmniChat",volume:3,assuntos:["Ajuste de fluxo","Solicitação - Ajuste de BOT","Integrações"],bugs:{abertas:0,concluidas:0},bot_ajuste:1,whizz_ajuste:1},
+          {nome:"Gran Farma",volume:2,assuntos:["Times","Dúvida - Times","Dúvida - Integração/API"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"AGROFEL ",volume:2,assuntos:["Dúvida - Relatório","Relatório","Relatório de Campanha"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Lojas Lebes",volume:2,assuntos:["Relatório","Solicitação - Relatórios","CSM"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"lojasmel",volume:2,assuntos:["Solicitação - Ajuste de BOT","Fluxo Bot","Dúvida- BOT"],bugs:{abertas:0,concluidas:0},bot_ajuste:2,whizz_ajuste:0},
+          {nome:"Bosch Ferramentas",volume:2,assuntos:["Dúvida - Dashboard","Dashboard","Relatório de Campanha"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Lojas AFUBRA",volume:2,assuntos:["Contador","Erro - contador","Dúvida - Integração/API"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Petite Jolie",volume:2,assuntos:["Dúvida - Whizz Agent","Whizz Agent","Bloqueio de Número"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:1},
+          {nome:"Deliz Fashion Group",volume:2,assuntos:["Solicitação - Ajuste de BOT","Ajuste de fluxo","Campanhas"],bugs:{abertas:0,concluidas:0},bot_ajuste:1,whizz_ajuste:0}
+        ]},
+        "Raphael":{bugs:[
+          {k:"S3-16188",t:"Whizz prometendo entrega expressa",s:"Triagem N3"},
+          {k:"S3-16177",t:"Imagens enviadas pelo contato não chegando na Omni",s:"Concluído"},
+          {k:"S3-16172",t:"Whizz tentando buscar produto com número do CEP",s:"Aguardando Validação"},
+          {k:"S3-16154",t:"Whizz alucinando com desconto que não existe",s:"Concluído"},
+          {k:"S3-16149",t:"Whizz Studio com opções não clicável em alguns agentes",s:"Concluído"}
+        ],clientes:[
+          {nome:"Cobasi",volume:3,assuntos:["Solicitação - HSM","HSM","Erro - Pedido"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Experiência Solar Dress to",volume:2,assuntos:["Solicitação - Ajuste de BOT","BOT Studio Pro","Fluxo Bot"],bugs:{abertas:0,concluidas:0},bot_ajuste:1,whizz_ajuste:0},
+          {nome:"[Grupo La Moda] La Moda",volume:2,assuntos:["Dúvida - Selo de Verificação","Selo Verificado","Dúvida - Relatório"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"[Grupo La Moda] Lança Perfume",volume:2,assuntos:["Dúvida - Roteador","Roteador","Solicitação - Bloqueio de número"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Beleza",volume:1,assuntos:["Dúvida - Cobrança Marketing studio","CSM"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Puket",volume:1,assuntos:["Erro -  Audiência","Audiência"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"TACO ",volume:1,assuntos:["Dúvida - Dashboard","Dashboard"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0},
+          {nome:"Essential Cobrança (INP)",volume:1,assuntos:["Dúvida - Boleto","Direcionado > Financeiro"],bugs:{abertas:0,concluidas:0},bot_ajuste:0,whizz_ajuste:0}
+        ]}
+      }
+    },
+
+    whizz:{
+      top_clientes:[
+        {nome:"GenioDesk",volume:5,tipo:"Bug",issues:["S3-16174"]},
+        {nome:"Hiago",volume:4,tipo:"Ajuste",issues:["S3-16163","S3-16167"]},
+        {nome:"Amanda",volume:3,tipo:"Bug",issues:["S3-16160","S3-16157"]},
+        {nome:"Willy",volume:3,tipo:"Ajuste",issues:["S3-16158"]},
+        {nome:"UNIVALI",volume:3,tipo:"Dúvida",issues:["S3-16179"]},
+        {nome:"Dogs Day",volume:2,tipo:"Bug",issues:["S3-16180"]},
+        {nome:"Frigelar",volume:2,tipo:"Ajuste",issues:["S3-16166"]},
+        {nome:"Webcontinental",volume:2,tipo:"Dúvida",issues:["S3-16179"]},
+        {nome:"Bike Point",volume:2,tipo:"Bug",issues:["S3-16164"]},
+        {nome:"Masters Plants",volume:1,tipo:"Ajuste",issues:["S3-16146"]}
+      ],
+      por_tipo:{bugs:24,duvidas:8,ajustes:5},
+      oportunidades:[
+        {titulo:"Catálogo Commerce — produto e carrinho",prioridade:"alta",descricao:"13 issues abertas: Whizz não encontra produto, promete entrega expressa indevida, envia link ao invés de imagem, checkout inválido. Volume dobrou na semana.",issues:13,squad:"Commerce",jql:'project = S3 AND cf[10071] = "Commerce" AND status != Concluído ORDER BY created DESC'},
+        {titulo:"Transferência e handoff",prioridade:"alta",descricao:"5 issues de transferência com erro: Whizz avisa que vai transferir mas não executa, finalização não funciona, qualificação não roda.",issues:5,squad:"Whizz Core",jql:'project = S3 AND cf[10071] = "Whizz Core" AND text ~ "transferência" AND status != Concluído ORDER BY created DESC'},
+        {titulo:"Habilidades e contexto",prioridade:"alta",descricao:"4 issues sem progresso: habilidade acionada em momento errado, API parando com ADK, base de conhecimento não consultada, perda de contexto no reengajamento.",issues:4,squad:"Whizz Core",jql:'project = S3 AND cf[10071] = "Whizz Core" AND status != Concluído ORDER BY created DESC'},
+        {titulo:"Formatação de respostas",prioridade:"media",descricao:"Respostas com textos excessivamente longos e termos técnicos inadequados para o contexto de atendimento ao cliente.",issues:1,squad:"Whizz Core",jql:'project = S3 AND key = S3-16179'}
+      ]
+    },
+
+    n2:{
+      jira_total:45,
+      jira_status:[["Concluído",16],["Triagem N3",9],["Selecionado p/ Desenvolvimento",6],["Em Desenvolvimento",3],["Aguardando Relator",4],["Aguardando Validação",1],["Triagem Suporte N2",2],["Em Andamento N2",1],["Aguardando Deploy Prod",1],["Aguardando por Fator Externo",1],["Triagem Suporte N3",1]],
+      jira_issues:{
+        "Commerce":[
+          {k:"S3-16191",t:"Redução nos disparos da campanha de Recuperação de Carrinho",s:"Triagem Suporte N2",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16190",t:"Whizz não encontra produto corretamente",s:"Concluído",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16188",t:"Whizz prometendo entrega expressa",s:"Em Andamento N2",p:"Low",a:"Andrews Martins",co:"Não identificado"},
+          {k:"S3-16185",t:"Checkout enviado pelo Whizz está inválido",s:"Aguardando Relator",p:"Low",a:"Andrews Martins",co:"Danielle Arantes"},
+          {k:"S3-16184",t:"Whizz envia link ao invés da imagem do produto",s:"Selecionado p/ Desenvolvimento",p:"Low",a:"—",co:"Danielle Arantes"},
+          {k:"S3-16183",t:"Validar geração de UTMs no fluxo de carrinho abandonado",s:"Triagem N3",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16181",t:"Whizz traz descrição dos produtos ao invés das fotos",s:"Triagem N3",p:"Low",a:"—",co:"JOSIANE TARIFA"},
+          {k:"S3-16180",t:"Whizz apresentando restrição de estoque e orientando para outro canal",s:"Triagem N3",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16174",t:"Whizz mandando produtos em texto sem imagens | GenioDesk",s:"Triagem N3",p:"Low",a:"—",co:"GenioDesk"},
+          {k:"S3-16172",t:"Whizz tentando buscar produto com número do CEP",s:"Selecionado p/ Desenvolvimento",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16164",t:"Whizz com negativa indevida de produto existente",s:"Concluído",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16154",t:"Whizz alucinando com desconto que não existe",s:"Concluído",p:"Medium",a:"Lucas Daniel",co:"Não identificado"},
+          {k:"S3-16150",t:"Whizz oferece categoria inexistente no catálogo",s:"Concluído",p:"Low",a:"—",co:"Não identificado"}
+        ],
+        "Whizz Core":[
+          {k:"S3-16179",t:"Whizz com textos excessivamente longos, termos técnicos inadequados",s:"Selecionado p/ Desenvolvimento",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16167",t:"Habilidade do Whizz acionada em momento errado",s:"Triagem N3",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16166",t:"Whizz informa transferência mas retém chat e dispara reengajamento indevido",s:"Concluído",p:"Low",a:"Andrews Martins",co:"Não identificado"},
+          {k:"S3-16163",t:"Habilidades conectadas por API pararam de funcionar com ADK",s:"Triagem N3",p:"Low",a:"—",co:"DANIEL RODINI"},
+          {k:"S3-16160",t:"Transferência do Whizz para bot com erro",s:"Selecionado p/ Desenvolvimento",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16159",t:"Whizz não executando perguntas de qualificação",s:"Aguardando Validação",p:"Low",a:"rafael.candido",co:"Não identificado"},
+          {k:"S3-16158",t:"Finalização configurada em Whizz não funcionando",s:"Selecionado p/ Desenvolvimento",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16157",t:"Whizz avisa que irá transferir atendimento mas não executa ação",s:"Selecionado p/ Desenvolvimento",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16156",t:"Whizz não utilizando base de conhecimento corretamente",s:"Aguardando Deploy Prod",p:"Low",a:"Cristiano M.",co:"Samoel Dametto"},
+          {k:"S3-16149",t:"Whizz Studio com opções não clicáveis em alguns agentes",s:"Concluído",p:"Low",a:"Bruno Haully",co:"Não identificado"},
+          {k:"S3-16148",t:"Whizz perdendo contexto no reengajamento",s:"Triagem N3",p:"Low",a:"—",co:"DANIEL RODINI"}
+        ],
+        "Manager":[
+          {k:"S3-16186",t:"Erro ao criar usuário",s:"Em Desenvolvimento",p:"Low",a:"Bruno Alves",co:"Não identificado"},
+          {k:"S3-16175",t:"Distribuição automática de conversas retidas quando atendente entra em pausa",s:"Aguardando Relator",p:"Low",a:"Andrews Martins",co:"Não identificado"},
+          {k:"S3-16170",t:"Supervisor com erro ao acessar chats finalizados",s:"Triagem N3",p:"Low",a:"Lucas Viana",co:"Não identificado"},
+          {k:"S3-16169",t:"Permissões de relatórios de Supervisor não refletem no login",s:"Aguardando Relator",p:"Low",a:"Leonardo M.",co:"Não identificado"},
+          {k:"S3-16162",t:"Fila de finalizados não exibida no app",s:"Concluído",p:"Low",a:"Andrews Martins",co:"Não identificado"}
+        ],
+        "Suporte N2":[
+          {k:"S3-16189",t:"Alterar nome",s:"Triagem Suporte N2",p:"Low",a:"—",co:"Alice M."},
+          {k:"S3-16161",t:"Alterar nome",s:"Concluído",p:"Low",a:"Andrews Martins",co:"Alice M."},
+          {k:"S3-16155",t:"Mensagens não chegando ao cliente final",s:"Em Desenvolvimento",p:"Low",a:"Moraes",co:"Não identificado"},
+          {k:"S3-16187",t:"Deeplink não abre janela com template corretamente",s:"Aguardando Relator",p:"Low",a:"Alexander D.",co:"Não identificado"},
+          {k:"S3-16151",t:"Template aprovado na Meta não reflete status na Omni",s:"Em Desenvolvimento",p:"Low",a:"Moraes",co:"Não identificado"},
+          {k:"S3-16177",t:"Imagens enviadas pelo contato não chegando na Omni",s:"Aguardando por Fator Externo",p:"Medium",a:"—",co:"Não identificado"}
+        ],
+        "Outros":[
+          {k:"S3-16178",t:"Falha na reversão automática de carteira após férias",s:"Triagem N3",p:"Low",a:"Lucas H.",co:"Não identificado"},
+          {k:"S3-16152",t:"Falha na vinculação de contato à carteira",s:"Concluído",p:"Low",a:"Andrews Martins",co:"Não identificado"},
+          {k:"S3-16182",t:"Integração Legado: não foi possível desativar embedded app",s:"Concluído",p:"Low",a:"Moraes",co:"Andrews Martins"},
+          {k:"S3-16176",t:"Solicitação de desbloqueio de número no backoffice",s:"Triagem Suporte N3",p:"Low",a:"—",co:"Não identificado"},
+          {k:"S3-16173",t:"Erro para deletar template",s:"Concluído",p:"Low",a:"Andrews Martins",co:"Não identificado"},
+          {k:"S3-16165",t:"Erro acionamento de Bot",s:"Concluído",p:"Low",a:"Luís Marchi",co:"Não identificado"},
+          {k:"S3-16147",t:"Erro acionamento de Bot",s:"Concluído",p:"Low",a:"Andrews Martins",co:"Não identificado"},
+          {k:"S3-16146",t:"Cadastro de Webhook | Masters Plants",s:"Concluído",p:"Low",a:"Andrews Martins",co:"Masters Plants"},
+          {k:"S3-16171",t:"Certificado na API não sincronizou e nome não atualiza",s:"Concluído",p:"Low",a:"Moraes",co:"Alice M."},
+          {k:"S3-16168",t:"Tipo de mensagem GROUPED retorna Erro 400 na API",s:"Concluído",p:"Low",a:"Moraes",co:"Não identificado"}
+        ]
+      }
+    }
+  },
+
+  "s5-jun2026":{disponivel:false}
+};
+
+/* ── PICKER ── */
+function togglePicker(){document.getElementById('dpBtn').classList.toggle('open');document.getElementById('dpDropdown').classList.toggle('open');}
+document.addEventListener('click',function(e){var p=document.getElementById('datePicker');if(!p.contains(e.target)){document.getElementById('dpBtn').classList.remove('open');document.getElementById('dpDropdown').classList.remove('open');}});
+
+function buildPicker(){
+  var html='<div class="dp-month-header"><div class="dp-month-title">Junho 2026</div></div>';
+  SEMANAS.forEach(function(k){
+    var st=STATUS[k],d=DADOS[k];
+    var cls='dp-week'+(st==='pendente'?' no-data':st==='em-andamento'?' in-progress':'');
+    var badge=st==='completa'?'<span class="dp-week-badge wbg-ok">Completa</span>':st==='em-andamento'?'<span class="dp-week-badge wbg-live">Em andamento</span>':'<span class="dp-week-badge wbg-soon">Em breve</span>';
+    var onclick=st!=='pendente'?'onclick="selectWeek(\''+k+'\')"':'';
+    html+='<button class="'+cls+'" id="dp-'+k+'" '+onclick+'><div class="dp-week-info"><div class="dp-week-label">'+LABELS[k]+'</div><div class="dp-week-dates">'+DATAS[k]+'</div></div>'+badge+'</button>';
+  });
+  document.getElementById('dpDropdown').innerHTML=html;
+}
+
+function selectWeek(key){
+  if(STATUS[key]==='pendente') return;
+  document.getElementById('dpLabel').textContent=LABELS[key];
+  document.querySelectorAll('.dp-week').forEach(function(b){b.classList.remove('active');});
+  var db=document.getElementById('dp-'+key);if(db)db.classList.add('active');
+  document.getElementById('dpBtn').classList.remove('open');
+  document.getElementById('dpDropdown').classList.remove('open');
+  renderWeek(key);
+}
+
+/* ── HELPERS ── */
+function bugBar(abertas,concluidas){
+  var total=abertas+concluidas;
+  if(total===0) return '<span style="color:var(--text3);font-size:11px">Sem issues</span>';
+  var pct=Math.round(concluidas/total*100);
+  var cls=pct>=70?'':'pct>=40?warn:crit';
+  if(pct>=70) cls='';else if(pct>=40) cls=' warn';else cls=' crit';
+  return '<div class="bug-bar-wrap"><div class="bug-bar-track"><div class="bug-bar-fill'+cls+'" style="width:'+pct+'%"></div></div>'
+    +'<span class="bug-nums"><span>'+concluidas+'✓</span> / '+total+' ('+pct+'%)</span></div>';
+}
+
+function ajusteBadges(bot,whizz){
+  var h='';
+  h+=(bot?'<span class="bot-badge">🤖 '+bot+'</span>':'<span class="bot-badge zero">—</span>');
+  h+=' '+(whizz?'<span class="bot-badge" style="background:rgba(45,212,160,.1);color:var(--green)">🧠 '+whizz+'</span>':'<span class="bot-badge zero" style="background:var(--bg3);color:var(--text3)">—</span>');
+  return h;
+}
+
+function assuntosList(arr){
+  if(!arr||!arr.length) return '—';
+  return '<div class="assunto-list">'+arr.slice(0,3).map(function(a){return '<span class="assunto-tag">'+a+'</span>';}).join('')+'</div>';
+}
+
+function mkClientTable(clientes,showTotal){
+  if(!clientes||!clientes.length) return '<div class="nodata" style="min-height:120px"><p>Nenhum cliente nesta semana</p></div>';
+  var total=clientes.reduce(function(s,c){return s+c.volume;},0);
+  var totalBot=clientes.reduce(function(s,c){return s+(c.bot_ajuste||0);},0);
+  var totalWhizz=clientes.reduce(function(s,c){return s+(c.whizz_ajuste||0);},0);
+  var h='';
+  if(showTotal){
+    h+='<div class="sum-strip">'
+      +'<div class="sum-chip"><strong>'+clientes.length+'</strong>clientes</div>'
+      +'<div class="sum-chip"><strong>'+total+'</strong>chamados</div>'
+      
+      +'<div class="sum-chip"><strong>'+totalBot+'</strong>ajustes BOT</div>'+'<div class="sum-chip"><strong>'+totalWhizz+'</strong>ajustes Whizz</div>'
+      +'</div>';
+  }
+  h+='<table class="client-table"><thead><tr>'
+    +'<th>#</th><th>Cliente</th><th>Vol.</th><th>Principais assuntos</th><th style="white-space:nowrap">🤖 BOT</th><th style="white-space:nowrap">🧠 Whizz</th>'
+    +'</tr></thead><tbody>';
+  clientes.sort(function(a,b){return b.volume-a.volume;}).forEach(function(c,i){
+    h+='<tr><td style="color:var(--text3);width:28px">'+(i+1)+'</td>'
+      +'<td><span class="client-name">'+c.nome+'</span></td>'
+      +'<td style="white-space:nowrap"><span style="font-weight:700;color:var(--text);font-size:13px">'+c.volume+'</span></td>'
+      +'<td>'+assuntosList(c.assuntos)+'</td>'
+      
+      +'<td>'+(c.bot_ajuste?'<span class="bot-badge">🤖 '+c.bot_ajuste+'</span>':'<span class="bot-badge zero">—</span>')+'</td>'+'<td>'+(c.whizz_ajuste?'<span class="bot-badge" style="background:rgba(45,212,160,.1);color:var(--green)">🧠 '+c.whizz_ajuste+'</span>':'<span class="bot-badge zero" style="background:var(--bg3);color:var(--text3)">—</span>')+'</td>'
+      +'</tr>';
+  });
+  h+='</tbody></table>';
+  return h;
+}
+
+/* ── SP por CSM ── */
+var _activeCsm='Nayara';
+var _currentSpMensal=null;
+
+/* ── SP BUGS LIST ── */
+var SLA_PRI={"Triagem N3":1,"Aguardando Validação":2,"Em Desenvolvimento":3,"Selecionado p/ Desenvolvimento":4,"Aguardando Deploy Prod":5,"Concluído":6};
+
+function bugStatusStyle(s){
+  var map={
+    "Concluído":                    "background:rgba(45,212,160,.12);color:var(--green)",
+    "Em Desenvolvimento":           "background:rgba(79,142,247,.12);color:var(--accent)",
+    "Selecionado p/ Desenvolvimento":"background:rgba(79,142,247,.08);color:#7cb9f5",
+    "Triagem N3":                   "background:rgba(245,158,11,.12);color:#f59e0b",
+    "Aguardando Validação":         "background:rgba(245,158,11,.12);color:#f59e0b",
+    "Aguardando Deploy Prod":       "background:rgba(167,139,250,.12);color:var(--purple)"
+  };
+  return map[s]||"background:rgba(139,146,168,.1);color:var(--text3)";
+}
+
+function filterBugs(cid,filter,btn){
+  var wrap=document.getElementById(cid);if(!wrap)return;
+  wrap.querySelectorAll('.bug-chip').forEach(function(c){c.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  wrap.querySelectorAll('.bug-row').forEach(function(r){
+    var open=r.getAttribute('data-open')==='true';
+    r.style.display=(filter==='all'||( filter==='open'&&open)||(filter==='done'&&!open))?'':'none';
+  });
+}
+
+function mkBugsList(bugs,csmName){
+  if(!bugs||!bugs.length) return '<div style="color:var(--text3);font-size:12px;padding:8px 0">Nenhuma issue aberta nesta semana</div>';
+  var cid='bugs-'+csmName.replace(/[^a-zA-Z]/g,'');
+  var conc=bugs.filter(function(b){return b.s==='Concluído';}).length;
+  var abrt=bugs.length-conc;
+  // Sort: open first by SLA priority, then concluded; within group by key number asc (older first)
+  var sorted=bugs.slice().sort(function(a,b){
+    var pa=SLA_PRI[a.s]||3, pb=SLA_PRI[b.s]||3;
+    if(pa!==pb)return pa-pb;
+    return parseInt(a.k.replace('S3-',''),10)-parseInt(b.k.replace('S3-',''),10);
+  });
+  var h='<div id="'+cid+'">';
+  h+='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">';
+  h+='<button class="bug-chip chip-all active" onclick="filterBugs(\''+cid+'\',\'all\',this)">🐛 '+bugs.length+' issues esta semana</button>';
+  if(abrt)h+='<button class="bug-chip chip-open" onclick="filterBugs(\''+cid+'\',\'open\',this)">'+abrt+' em aberto</button>';
+  if(conc)h+='<button class="bug-chip chip-done" onclick="filterBugs(\''+cid+'\',\'done\',this)">'+conc+' concluídas</button>';
+  h+='</div>';
+  h+='<div style="display:flex;flex-direction:column;gap:4px">';
+  sorted.forEach(function(b){
+    var isOpen=b.s!=='Concluído';
+    var url='https://omnichat.atlassian.net/browse/'+b.k;
+    var slaStyle=isOpen?'border-left:2px solid #f59e0b':'border-left:2px solid rgba(45,212,160,.3)';
+    h+='<div class="bug-row" data-open="'+isOpen+'" style="display:flex;align-items:center;gap:8px;padding:5px 8px 5px 10px;background:var(--bg3);border-radius:6px;font-size:12px;'+slaStyle+'">'
+      +'<a href="'+url+'" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap">'+b.k+'</a>'
+      +'<span style="flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+b.t+'">'+b.t+'</span>'
+      +'<span style="'+bugStatusStyle(b.s)+';padding:2px 8px;border-radius:12px;white-space:nowrap;font-size:11px">'+b.s+'</span>'
+      +'</div>';
+  });
+  h+='</div>';
+  h+='<div style="margin-top:6px;font-size:10px;color:var(--text3)">⚠️ Issues atribuídas via reporter (CSM). Para vincular ao cliente, inclua o nome no título: ex: "Erro no Whizz | Cobasi"</div>';
+  h+='</div>';
+  return h;
+}
+
+function mkSpTab(sp){
+  if(!sp||!sp.carteiras) return '<div class="nodata"><p>Sem dados SP</p></div>';
+  var csms=Object.keys(sp.carteiras);
+  var h='<div class="csm-filter">';
+  csms.forEach(function(csm){
+    h+='<button class="csm-btn'+(csm===_activeCsm?' active':'')+'" onclick="switchCsm(\''+csm+'\',this)">'+csm+'</button>';
+  });
+  h+='</div>';
+  // Chart section
+  h+='<div style="margin:16px 0 20px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px">';
+  h+='<div class="sec-title" style="margin:0 0 12px">📊 Distribuição mensal — % de atendimentos por cliente</div>';
+  h+='<div style="position:relative;height:260px"><canvas id="sp-chart-canvas"></canvas></div>';
+  h+='</div>';
+  // Client table panels
+  h+='<div id="sp-panels">';
+  csms.forEach(function(csm){
+    var cart=sp.carteiras[csm];
+    h+='<div id="csm-'+csm+'" style="display:'+(csm===_activeCsm?'block':'none')+'">';
+    h+=mkClientTable(cart.clientes,true);
+    h+='<div style="margin-top:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px">'
+      +'<div class="sec-title" style="margin:0 0 10px;font-size:13px">🐛 Issues S3 — Carteira '+csm+'</div>'
+      +mkBugsList(cart.bugs||[],csm)
+      +'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  return h;
+}
+function switchCsm(csm,btn){
+  _activeCsm=csm;
+  document.querySelectorAll('.csm-btn').forEach(function(b){b.classList.remove('active');});
+  if(btn) btn.classList.add('active');
+  var panels=document.getElementById('sp-panels');
+  if(panels){[].forEach.call(panels.children,function(d){d.style.display='none';});}
+  var el=document.getElementById('csm-'+csm);if(el)el.style.display='block';
+  if(_currentSpMensal) renderSpChart(csm,_currentSpMensal);
+}
+
+/* ── WHIZZ ── */
+function mkWhizzTab(wh,n2){
+  if(!wh) return '<div class="nodata"><p>Sem dados Whizz</p></div>';
+  var maxVol=wh.top_clientes[0]?wh.top_clientes[0].volume:1;
+  var tipoColor={'Bug':'var(--red)','Dúvida':'var(--accent)','Ajuste':'var(--purple)'};
+  var h='<div class="wh-grid">';
+  // Top clientes
+  h+='<div class="wh-card"><div class="wh-card-title">🏆 Top 10 clientes com issues Whizz</div>';
+  wh.top_clientes.forEach(function(c,i){
+    var pct=Math.round(c.volume/maxVol*100);
+    var tc=tipoColor[c.tipo]||'var(--text2)';
+    h+='<div class="wh-client-row">'
+      +'<span class="wh-rank">'+(i+1)+'</span>'
+      +'<span style="flex:1;font-size:12px;font-weight:500;color:var(--text)">'+c.nome+'</span>'
+      +'<div class="wh-bar"><div class="wh-bar-fill" style="width:'+pct+'%;background:'+tc+'"></div></div>'
+      +'<span style="font-size:11px;font-weight:700;color:'+tc+';min-width:16px;text-align:right">'+c.volume+'</span>'
+      +'</div>';
+  });
+  h+='</div>';
+  // Tipo de issue
+  var total=wh.por_tipo.bugs+wh.por_tipo.duvidas+wh.por_tipo.ajustes;
+  h+='<div class="wh-card"><div class="wh-card-title">📊 Tipo de issue Whizz</div>'
+    +'<div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">';
+  [{label:'🐛 Bugs',val:wh.por_tipo.bugs,cor:'var(--red)'},{label:'❓ Dúvidas',val:wh.por_tipo.duvidas,cor:'var(--accent)'},{label:'⚙️ Ajustes',val:wh.por_tipo.ajustes,cor:'var(--purple)'}].forEach(function(t){
+    var p=total?Math.round(t.val/total*100):0;
+    h+='<div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span style="color:var(--text2)">'+t.label+'</span><span style="color:'+t.cor+';font-weight:700">'+t.val+' <span style="opacity:.6">('+p+'%)</span></span></div>'
+      +'<div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden"><div style="width:'+p+'%;height:100%;background:'+t.cor+';border-radius:3px"></div></div></div>';
+  });
+  h+='</div></div></div>';
+  // Oportunidades
+  h+='<div class="sec-title">💡 Oportunidades de melhoria</div><div class="opp-list">';
+  wh.oportunidades.forEach(function(o){
+    h+='<div class="opp-card '+o.prioridade+'">'
+      +'<span class="opp-pri '+o.prioridade+'">'+o.prioridade.charAt(0).toUpperCase()+o.prioridade.slice(1)+'</span>'
+      +'<div class="opp-body"><div class="opp-title">'+o.titulo+'</div>'
+      +'<div class="opp-desc">'+o.descricao+'</div>'
+      +'<div class="opp-issues">'
+      +(o.jql?'<a href="https://omnichat.atlassian.net/issues/?jql='+encodeURIComponent(o.jql)+'" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600">'+o.issues+' issues</a>':o.issues+' issues')
+      +' · Squad: '+o.squad
+      +'</div>'
+
+      +'</div></div>';
+  });
+  h+='</div>';
+  // ── Issues por squad Whizz ──────────────────────────────────────────
+  if(n2&&n2.jira_issues){
+    var WHIZZ_SQUADS=['Commerce','Whizz Core','Whizz Retail'];
+    var whIssues=[];
+    WHIZZ_SQUADS.forEach(function(sq){
+      (n2.jira_issues[sq]||[]).forEach(function(i){
+        whIssues.push({k:i.k,t:i.t,s:i.s,squad:sq});
+      });
+    });
+    if(whIssues.length){
+      h+='<div style="margin-top:20px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px">';
+      h+='<div class="sec-title" style="margin:0 0 10px;font-size:13px">🐛 Issues Whizz esta semana — Commerce + Whizz Core</div>';
+      h+=mkBugsList(whIssues,'Whizz');
+      h+='</div>';
+    }
+  }
+  return h;
+}
+
+/* ── N2 ISSUES ── */
+var N2F_V2={};
+var ST_COLOR={'Concluído':'#2dd4a0','Triagem N3':'#f59e0b','Triagem Suporte N3':'#f59e0b','Aguardando Validação':'#a78bfa','Aguardando Relator':'#4f8ef7','Em Desenvolvimento':'#4f8ef7','Em Andamento N2':'#4f8ef7','Selecionado p/ Desenvolvimento':'#4f8ef7','Triagem Suporte N2':'#f59e0b','Aguardando Deploy Prod':'#a78bfa','Aguardando por Fator Externo':'#f59e0b'};
+var P_CLS={'High':'p-high','Medium':'p-med','Low':'p-low'};
+
+function mkIssueRow(i){
+  var sc=ST_COLOR[i.s]||'#555d75';
+  var pc=P_CLS[i.p]||'p-low';
+  return '<tr>'
+    +'<td><a class="iss-link" href="https://omnichat.atlassian.net/browse/'+i.k+'" target="_blank">'+i.k+'</a></td>'
+    +'<td style="color:var(--text);max-width:300px">'+i.t+'</td>'
+    +'<td><span class="st-badge" style="background:'+sc+'22;color:'+sc+'">'+i.s+'</span></td>'
+    +'<td><span class="p-badge '+pc+'">'+i.p+'</span></td>'
+    +'<td class="co-tag">'+i.co+'</td>'
+    +'<td style="color:var(--text2);font-size:11px">'+(i.a||'—')+'</td>'
+    +'</tr>';
+}
+
+function applyN2FilterV2(pfx,issues){
+  var f=N2F_V2[pfx]||{squad:'Todos',status:'Todos'};
+  var squads=Object.keys(issues);
+  var squadRows=f.squad==='Todos'?squads.reduce(function(acc,k){return acc.concat(issues[k]||[]);},[]):(issues[f.squad]||[]);
+  // update status counts
+  var stBtns=document.querySelectorAll('[id^="'+pfx+'-st-"]');
+  stBtns.forEach(function(b){
+    var st=b.getAttribute('data-st');
+    if(!st||st==='Todos')return;
+    var cnt=squadRows.filter(function(r){return r.s===st;}).length;
+    b.innerHTML=st+' <span style="opacity:.6">('+cnt+')</span>';
+  });
+  var rows=squadRows.slice();
+  if(f.status&&f.status!=='Todos') rows=rows.filter(function(r){return r.s===f.status;});
+  var tbody=document.getElementById(pfx+'-tbody');
+  if(tbody) tbody.innerHTML=rows.map(mkIssueRow).join('');
+}
+
+function filterSquadV2(pfx,squad,issues){
+  if(!N2F_V2[pfx])N2F_V2[pfx]={squad:'Todos',status:'Todos'};
+  N2F_V2[pfx].squad=squad||'Todos';
+  var squads=Object.keys(issues);
+  squads.forEach(function(sq){var b=document.getElementById(pfx+'-sq-'+sq);if(b)b.className='sfilter-btn'+(sq===N2F_V2[pfx].squad?' sfa':'');});
+  var tb=document.getElementById(pfx+'-sq-Todos');if(tb)tb.className='sfilter-btn'+(N2F_V2[pfx].squad==='Todos'?' sfa':'');
+  applyN2FilterV2(pfx,issues);
+}
+
+function filterStatusV2(pfx,status,issues){
+  if(!N2F_V2[pfx])N2F_V2[pfx]={squad:'Todos',status:'Todos'};
+  N2F_V2[pfx].status=status||'Todos';
+  document.querySelectorAll('[id^="'+pfx+'-st-"]').forEach(function(b){
+    b.className='sfilter-btn'+(b.getAttribute('data-st')===N2F_V2[pfx].status?' sfa':'');
+  });
+  applyN2FilterV2(pfx,issues);
+}
+
+function mkN2Tab(n2,key){
+  if(!n2||!n2.jira_issues) return '<div class="nodata"><p>Sem dados N2</p></div>';
+  var issues=n2.jira_issues;
+  var squads=Object.keys(issues);
+  var allIssues=squads.reduce(function(acc,k){return acc.concat(issues[k]||[]);},[]);
+  var pfx='n2v2-'+key;
+  // status set
+  var statusSet={};allIssues.forEach(function(i){if(i.s)statusSet[i.s]=true;});
+  var stList=Object.keys(statusSet);
+  var h='<div class="sum-strip">'
+    +'<div class="sum-chip"><strong>'+allIssues.length+'</strong>issues total</div>'
+    +'<div class="sum-chip"><strong>'+allIssues.filter(function(i){return i.s==='Concluído';}).length+'</strong>concluídas</div>'
+    +'<div class="sum-chip"><strong>'+allIssues.filter(function(i){return i.s!=='Concluído';}).length+'</strong>em aberto</div>'
+    +'</div>';
+  // squad filter
+  h+='<div class="squad-filter">';
+  h+='<button class="sfilter-btn sfa" id="'+pfx+'-sq-Todos" onclick="filterSquadV2(\''+pfx+'\',\'Todos\',DADOS[\''+key+'\'].n2.jira_issues)">Todos ('+allIssues.length+')</button>';
+  squads.forEach(function(sq){
+    var cnt=(issues[sq]||[]).length;if(!cnt)return;
+    h+='<button class="sfilter-btn" id="'+pfx+'-sq-'+sq+'" onclick="filterSquadV2(\''+pfx+'\',\''+sq+'\',DADOS[\''+key+'\'].n2.jira_issues)">'+sq+' ('+cnt+')</button>';
+  });
+  h+='</div>';
+  // status filter
+  h+='<div style="margin:10px 0 12px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Filtrar por status</div>';
+  h+='<div class="squad-filter">';
+  h+='<button class="sfilter-btn sfa" id="'+pfx+'-st-Todos" data-st="Todos" onclick="filterStatusV2(\''+pfx+'\',\'Todos\',DADOS[\''+key+'\'].n2.jira_issues)">Todos</button>';
+  stList.forEach(function(st,si){
+    var cnt=allIssues.filter(function(i){return i.s===st;}).length;
+    var sc=ST_COLOR[st]||'#555d75';
+    h+='<button class="sfilter-btn" id="'+pfx+'-st-'+si+'" data-st="'+st+'" onclick="filterStatusV2(\''+pfx+'\',\''+st+'\',DADOS[\''+key+'\'].n2.jira_issues)" style="color:'+sc+'">'+st+' <span style="opacity:.6">('+cnt+')</span></button>';
+  });
+  h+='</div></div>';
+  // table
+  h+='<div style="overflow-x:auto"><table class="issue-table"><thead><tr>'
+    +'<th>Issue</th><th>Título</th><th>Status</th><th>P</th><th>Empresa</th><th>Responsável</th>'
+    +'</tr></thead><tbody id="'+pfx+'-tbody">'
+    +allIssues.map(mkIssueRow).join('')
+    +'</tbody></table></div>';
+  return h;
+}
+
+
+/* ── SP MENSAL: agrega todas as semanas do mês disponíveis ── */
+var _spChartInst=null;
+
+function calcSpMensal(weekKey){
+  var month=weekKey.replace(/^s\d+-/,''); // e.g. "jun2026"
+  var agg={};
+  SEMANAS.forEach(function(k){
+    if(k.indexOf(month)===-1) return;
+    var d=DADOS[k];
+    if(!d||!d.disponivel||!d.sp) return;
+    Object.keys(d.sp.carteiras).forEach(function(csm){
+      if(!agg[csm])agg[csm]={};
+      (d.sp.carteiras[csm].clientes||[]).forEach(function(cl){
+        if(!agg[csm][cl.nome])agg[csm][cl.nome]={volume:0,bot_ajuste:0,whizz_ajuste:0,assuntos:cl.assuntos||[]};
+        agg[csm][cl.nome].volume+=cl.volume;
+        agg[csm][cl.nome].bot_ajuste+=(cl.bot_ajuste||0);
+        agg[csm][cl.nome].whizz_ajuste+=(cl.whizz_ajuste||0);
+      });
+    });
+  });
+  var result={};
+  Object.keys(agg).forEach(function(csm){
+    var list=Object.keys(agg[csm]).map(function(nome){
+      return Object.assign({nome:nome},agg[csm][nome]);
+    });
+    list.sort(function(a,b){return b.volume-a.volume;});
+    result[csm]=list;
+  });
+  return result;
+}
+
+function renderSpChart(csm,mensal){
+  var clientes=(mensal[csm]||[]).slice(0,8);
+  var total=clientes.reduce(function(s,c){return s+c.volume;},0)||1;
+  var canvas=document.getElementById('sp-chart-canvas');
+  if(!canvas)return;
+  if(_spChartInst){_spChartInst.destroy();_spChartInst=null;}
+  var PALETTE=['rgba(79,142,247,.85)','rgba(167,139,250,.85)','rgba(45,212,160,.85)','rgba(245,158,11,.85)','rgba(242,108,108,.85)','rgba(96,165,250,.85)','rgba(251,191,36,.85)','rgba(52,211,153,.85)'];
+  _spChartInst=new Chart(canvas,{
+    type:'bar',
+    data:{
+      labels:clientes.map(function(c){var n=c.nome;return n.length>22?n.slice(0,20)+'…':n;}),
+      datasets:[{
+        data:clientes.map(function(c){return Math.round(c.volume/total*100);}),
+        backgroundColor:PALETTE.slice(0,clientes.length),
+        borderRadius:6,borderSkipped:false
+      }]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:function(ctx){
+          var cl=clientes[ctx.dataIndex];
+          return ctx.raw+'% do total ('+cl.volume+' atend.)';
+        }}}
+      },
+      scales:{
+        x:{max:100,grid:{color:'rgba(255,255,255,.05)'},border:{color:'rgba(255,255,255,.08)'},
+          ticks:{color:'#8b92a8',callback:function(v){return v+'%';}}},
+        y:{grid:{display:false},ticks:{color:'#f0f2f8',font:{size:11}}}
+      }
+    }
+  });
+}
+
+/* ── RENDER WEEK ── */
+function showTab(id,btn){
+  document.querySelectorAll('.sec').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById(id).classList.add('active');btn.classList.add('active');
+  if(id==='ssp'&&_currentSpMensal) setTimeout(function(){renderSpChart(_activeCsm,_currentSpMensal);},20);
+}
+
+function ndCard(msg){return '<div class="nodata"><div class="ic">📅</div><p>'+msg+'</p></div>';}
+
+function renderWeek(key){
+  var d=DADOS[key],blive=document.getElementById('blive'),footer=document.getElementById('footer');
+  if(!key||!d){
+    blive.style.display='none';footer.style.display='none';
+    document.getElementById('main').innerHTML='<div class="nodata"><div class="ic">📊</div><p>Selecione uma semana</p></div>';
+    document.getElementById('subtitle').textContent='Omni · Junho 2026 — Selecione a semana';return;
+  }
+  document.getElementById('subtitle').textContent='Omni · Junho 2026 · '+LABELS[key];
+  var isLive=STATUS[key]==='em-andamento';
+  blive.className='blive'+(isLive?' blive-amber':'');
+  blive.style.display='inline-flex';
+  document.getElementById('bliveText').textContent=isLive?'Em andamento':'Semana concluída';
+  footer.style.display='block';
+  footer.innerHTML=d.disponivel
+    ?'Fonte: Intercom · Jira S3 · Gerado em '+(d.gerado||'--')+' · Omni Suporte Jun/2026'
+    :'Dados não disponíveis para '+LABELS[key];
+
+  if(!d.disponivel){
+    var msg=isLive?'Semana em andamento — dados disponíveis ao final do período.':'Semana ainda não iniciada.';
+    document.getElementById('main').innerHTML=
+      '<div class="tabs"><button class="tab active" onclick="showTab(\'stt\',this)">TechTouch</button>'
+      +'<button class="tab" onclick="showTab(\'sob\',this)">Onboarding</button>'
+      +'<button class="tab" onclick="showTab(\'ssp\',this)">SP por CSM</button>'
+      +'<button class="tab" onclick="showTab(\'swh\',this)">🤖 Whizz</button>'
+      +'<button class="tab" onclick="showTab(\'sn2\',this)">Issues N2</button></div>'
+      +'<div id="stt" class="sec active">'+ndCard(msg)+'</div>'
+      +'<div id="sob" class="sec">'+ndCard(msg)+'</div>'
+      +'<div id="ssp" class="sec">'+ndCard(msg)+'</div>'
+      +'<div id="swh" class="sec">'+ndCard(msg)+'</div>'
+      +'<div id="sn2" class="sec">'+ndCard(msg)+'</div>';
+    return;
+  }
+
+  document.getElementById('main').innerHTML=
+    '<div class="tabs">'
+    +'<button class="tab active" onclick="showTab(\'stt\',this)">TechTouch</button>'
+    +'<button class="tab" onclick="showTab(\'sob\',this)">Onboarding</button>'
+    +'<button class="tab" onclick="showTab(\'ssp\',this)">SP por CSM</button>'
+    +'<button class="tab" onclick="showTab(\'swh\',this)">🤖 Whizz</button>'
+    +'<button class="tab" onclick="showTab(\'sn2\',this)">Issues N2</button>'
+    +'</div>'
+    +'<div id="stt" class="sec active"><div class="sec-title">TechTouch — Top clientes N1</div><div style="font-size:11px;color:var(--text3);margin-bottom:10px;padding:6px 10px;background:rgba(79,142,247,.06);border-radius:6px;border-left:3px solid var(--accent)">Clientes que entram pelo suporte padrão (tag "Resolvido N1"). Clientes SP têm atendimento dedicado e aparecem na aba SP por CSM.</div>'+mkClientTable(d.techtouch&&d.techtouch.clientes,true)+'<div style="margin-top:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px"><div class="sec-title" style="margin:0 0 10px;font-size:13px">🐛 Issues S3 — TechTouch / N1</div>'+mkBugsList((d.techtouch&&d.techtouch.bugs)||[],"TechTouch")+'</div></div>'
+    +'<div id="sob" class="sec"><div class="sec-title">Onboarding — Clientes em implantação</div>'+mkClientTable(d.onboarding&&d.onboarding.clientes,true)+'<div style="margin-top:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px"><div class="sec-title" style="margin:0 0 10px;font-size:13px">🐛 Issues S3 — Onboarding</div>'+mkBugsList((d.onboarding&&d.onboarding.bugs)||[],"Onboarding")+'</div></div>'
+    +(function(){
+  var _m=calcSpMensal(key);_currentSpMensal=_m;
+  return '<div id="ssp" class="sec"><div class="sec-title">SP Sucesso Premium — Por carteira CSM</div><div style="font-size:11px;color:var(--text3);margin-bottom:10px;padding:6px 10px;background:rgba(167,139,250,.06);border-radius:6px;border-left:3px solid var(--purple)">Organizações com tag \"Resolvido Premium\" no Intercom, agrupadas pela carteira do CSM responsável.</div>'+mkSpTab(d.sp)+'</div>';
+})()
+    +'<div id="swh" class="sec"><div class="sec-title">Whizz — Análise de issues e oportunidades</div>'+mkWhizzTab(d.whizz,d.n2)+'</div>'
+    +'<div id="sn2" class="sec"><div class="sec-title">Issues N2 — Visão completa Jira S3</div>'+mkN2Tab(d.n2,key)+'</div>';
+  // Render SP chart after DOM is ready
+  setTimeout(function(){if(_currentSpMensal)renderSpChart(_activeCsm,_currentSpMensal);},50);
+}
+
+window.addEventListener('load',function(){applyTheme(_theme);
+  buildPicker();
+  var latest=null;
+  for(var i=SEMANAS.length-1;i>=0;i--){if(DADOS[SEMANAS[i]]&&DADOS[SEMANAS[i]].disponivel){latest=SEMANAS[i];break;}}
+  if(latest) selectWeek(latest);
+});
+</script>
+</body>
+</html>
