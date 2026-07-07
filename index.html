@@ -20,7 +20,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .dp-btn.open svg{transform:rotate(180deg)}
 .dp-dropdown{position:absolute;top:calc(100% + 6px);right:0;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);min-width:240px;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:100;overflow:hidden;display:none}
 .dp-dropdown.open{display:block}
-.dp-month-header{padding:10px 14px 6px;border-bottom:1px solid var(--border)}
+.dp-month-header{padding:10px 14px;border-bottom:1px solid var(--border);width:100%;background:none;border-left:none;border-right:none;border-top:none;display:flex;align-items:center;justify-content:space-between;cursor:pointer;color:inherit;font-family:inherit}.dp-month-header:hover{background:var(--bg3)}.dp-month-chev{color:var(--text3);flex-shrink:0}
 .dp-month-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em}
 .dp-week{display:flex;align-items:center;justify-content:space-between;width:100%;padding:9px 14px;background:none;border:none;color:var(--text2);font-size:12px;cursor:pointer;text-align:left;transition:all .15s;border-left:3px solid transparent}
 .dp-week:hover{color:var(--text);background:var(--bg3)}
@@ -467,22 +467,39 @@ var DADOS={
 function togglePicker(){document.getElementById('dpBtn').classList.toggle('open');document.getElementById('dpDropdown').classList.toggle('open');}
 document.addEventListener('click',function(e){var p=document.getElementById('datePicker');if(!p.contains(e.target)){document.getElementById('dpBtn').classList.remove('open');document.getElementById('dpDropdown').classList.remove('open');}});
 
+var MES_OPEN={};
 function buildPicker(){
-  var html='';
-  var lastMes=null;
-  SEMANAS.forEach(function(k,idx){
+  var groups=[],map={};
+  SEMANAS.forEach(function(k){
     var mes=MES[k];
-    if(mes!==lastMes){
-      html+='<div class="dp-month-header"'+(idx>0?' style="margin-top:4px;border-top:1px solid var(--border)"':'')+'><div class="dp-month-title">🗓️ '+mes+'</div></div>';
-      lastMes=mes;
-    }
-    var st=STATUS[k],d=DADOS[k];
-    var cls='dp-week'+(st==='pendente'?' no-data':st==='em-andamento'?' in-progress':'');
-    var badge=st==='completa'?'<span class="dp-week-badge wbg-ok">Completa</span>':st==='em-andamento'?'<span class="dp-week-badge wbg-live">Em andamento</span>':'<span class="dp-week-badge wbg-soon">Em breve</span>';
-    var onclick=st!=='pendente'?'onclick="selectWeek(\''+k+'\')"':'';
-    html+='<button class="'+cls+'" id="dp-'+k+'" '+onclick+'><div class="dp-week-info"><div class="dp-week-label">'+LABELS[k]+'</div><div class="dp-week-dates">'+DATAS[k]+'</div></div>'+badge+'</button>';
+    if(!map[mes]){map[mes]={mes:mes,keys:[]};groups.push(map[mes]);}
+    map[mes].keys.push(k);
+  });
+  if(Object.keys(MES_OPEN).length===0){
+    groups.forEach(function(g,i){MES_OPEN[g.mes]=(i===groups.length-1);});
+  }
+  var html='';
+  groups.forEach(function(g,gi){
+    var open=!!MES_OPEN[g.mes];
+    html+='<button type="button" class="dp-month-header dp-month-toggle" onclick="toggleMes(\''+g.mes+'\')"'+(gi>0?' style="margin-top:4px;border-top:1px solid var(--border)"':'')+'>'
+      +'<div class="dp-month-title">🗓️ '+g.mes+'</div>'
+      +'<svg width="12" height="12" viewBox="0 0 14 14" fill="none" class="dp-month-chev" style="transition:transform .2s;transform:rotate('+(open?'180':'0')+'deg)"><path d="M2 5l5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      +'</button>';
+    html+='<div style="display:'+(open?'block':'none')+'">';
+    g.keys.forEach(function(k){
+      var st=STATUS[k];
+      var cls='dp-week'+(st==='pendente'?' no-data':st==='em-andamento'?' in-progress':'');
+      var badge=st==='completa'?'<span class="dp-week-badge wbg-ok">Completa</span>':st==='em-andamento'?'<span class="dp-week-badge wbg-live">Em andamento</span>':'<span class="dp-week-badge wbg-soon">Em breve</span>';
+      var onclick=st!=='pendente'?'onclick="selectWeek(\''+k+'\')"':'';
+      html+='<button class="'+cls+'" id="dp-'+k+'" '+onclick+'><div class="dp-week-info"><div class="dp-week-label">'+LABELS[k]+'</div><div class="dp-week-dates">'+DATAS[k]+'</div></div>'+badge+'</button>';
+    });
+    html+='</div>';
   });
   document.getElementById('dpDropdown').innerHTML=html;
+}
+function toggleMes(mes){
+  MES_OPEN[mes]=!MES_OPEN[mes];
+  buildPicker();
 }
 
 function selectWeek(key){
