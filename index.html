@@ -215,10 +215,11 @@ function applyTheme(t){
 function toggleTheme(){applyTheme(_theme==='light'?'dark':'light');}
 
 
-var SEMANAS=["s1-jun2026","s2-jun2026","s3-jun2026","s4-jun2026","s5-jun2026"];
-var LABELS={"s1-jun2026":"S1 · 01–07/Jun","s2-jun2026":"S2 · 08–14/Jun","s3-jun2026":"S3 · 15–21/Jun","s4-jun2026":"S4 · 22–28/Jun","s5-jun2026":"S5 · 29–30/Jun"};
-var DATAS={"s1-jun2026":"01/06 a 07/06/2026","s2-jun2026":"08/06 a 14/06/2026","s3-jun2026":"15/06 a 21/06/2026","s4-jun2026":"22/06 a 28/06/2026","s5-jun2026":"29/06 a 30/06/2026"};
-var STATUS={"s1-jun2026":"completa","s2-jun2026":"completa","s3-jun2026":"completa","s4-jun2026":"completa","s5-jun2026":"completa"};
+var SEMANAS=["s1-jun2026","s2-jun2026","s3-jun2026","s4-jun2026","s5-jun2026","s6-jul2026","s7-jul2026","s8-jul2026","s9-jul2026"];
+var LABELS={"s1-jun2026":"S1 · 01–07/Jun","s2-jun2026":"S2 · 08–14/Jun","s3-jun2026":"S3 · 15–21/Jun","s4-jun2026":"S4 · 22–28/Jun","s5-jun2026":"S5 · 29/Jun–05/Jul","s6-jul2026":"S6 · 06–12/Jul","s7-jul2026":"S7 · 13–19/Jul","s8-jul2026":"S8 · 20–26/Jul","s9-jul2026":"S9 · 27/Jul–02/Ago"};
+var DATAS={"s1-jun2026":"01/06 a 07/06/2026","s2-jun2026":"08/06 a 14/06/2026","s3-jun2026":"15/06 a 21/06/2026","s4-jun2026":"22/06 a 28/06/2026","s5-jun2026":"29/06 a 05/07/2026","s6-jul2026":"06/07 a 12/07/2026","s7-jul2026":"13/07 a 19/07/2026","s8-jul2026":"20/07 a 26/07/2026","s9-jul2026":"27/07 a 02/08/2026"};
+var STATUS={"s1-jun2026":"completa","s2-jun2026":"completa","s3-jun2026":"completa","s4-jun2026":"completa","s5-jun2026":"completa","s6-jul2026":"em-andamento","s7-jul2026":"pendente","s8-jul2026":"pendente","s9-jul2026":"pendente"};
+var MES={"s1-jun2026":"Junho 2026","s2-jun2026":"Junho 2026","s3-jun2026":"Junho 2026","s4-jun2026":"Junho 2026","s5-jun2026":"Junho 2026","s6-jul2026":"Julho 2026","s7-jul2026":"Julho 2026","s8-jul2026":"Julho 2026","s9-jul2026":"Julho 2026"};
 
 // CSM_CARTEIRAS: sênior → sub-CSMs que atendem (usados para atribuir org à carteira)
 var CSM_CARTEIRAS={
@@ -454,7 +455,12 @@ var DADOS={
     }
   },
 
-  "s5-jun2026":{disponivel:false}
+  "s5-jun2026":{disponivel:false},
+  "s6-jul2026":{disponivel:false},
+  "s7-jul2026":{disponivel:false},
+  "s8-jul2026":{disponivel:false},
+  "s9-jul2026":{disponivel:false}
+
 };
 
 /* ── PICKER ── */
@@ -462,8 +468,14 @@ function togglePicker(){document.getElementById('dpBtn').classList.toggle('open'
 document.addEventListener('click',function(e){var p=document.getElementById('datePicker');if(!p.contains(e.target)){document.getElementById('dpBtn').classList.remove('open');document.getElementById('dpDropdown').classList.remove('open');}});
 
 function buildPicker(){
-  var html='<div class="dp-month-header"><div class="dp-month-title">Junho 2026</div></div>';
-  SEMANAS.forEach(function(k){
+  var html='';
+  var lastMes=null;
+  SEMANAS.forEach(function(k,idx){
+    var mes=MES[k];
+    if(mes!==lastMes){
+      html+='<div class="dp-month-header"'+(idx>0?' style="margin-top:4px;border-top:1px solid var(--border)"':'')+'><div class="dp-month-title">🗓️ '+mes+'</div></div>';
+      lastMes=mes;
+    }
     var st=STATUS[k],d=DADOS[k];
     var cls='dp-week'+(st==='pendente'?' no-data':st==='em-andamento'?' in-progress':'');
     var badge=st==='completa'?'<span class="dp-week-badge wbg-ok">Completa</span>':st==='em-andamento'?'<span class="dp-week-badge wbg-live">Em andamento</span>':'<span class="dp-week-badge wbg-soon">Em breve</span>';
@@ -877,16 +889,16 @@ function renderWeek(key){
   if(!key||!d){
     blive.style.display='none';footer.style.display='none';
     document.getElementById('main').innerHTML='<div class="nodata"><div class="ic">📊</div><p>Selecione uma semana</p></div>';
-    document.getElementById('subtitle').textContent='Omni · Junho 2026 — Selecione a semana';return;
+    document.getElementById('subtitle').textContent='Omni · Suporte — Selecione a semana';return;
   }
-  document.getElementById('subtitle').textContent='Omni · Junho 2026 · '+LABELS[key];
+  document.getElementById('subtitle').textContent='Omni · '+MES[key]+' · '+LABELS[key];
   var isLive=STATUS[key]==='em-andamento';
   blive.className='blive'+(isLive?' blive-amber':'');
   blive.style.display='inline-flex';
   document.getElementById('bliveText').textContent=isLive?'Em andamento':'Semana concluída';
   footer.style.display='block';
   footer.innerHTML=d.disponivel
-    ?'Fonte: Intercom · Jira S3 · Gerado em '+(d.gerado||'--')+' · Omni Suporte Jun/2026'
+    ?'Fonte: Intercom · Jira S3 · Gerado em '+(d.gerado||'--')+' · Omni Suporte'
     :'Dados não disponíveis para '+LABELS[key];
 
   if(!d.disponivel){
